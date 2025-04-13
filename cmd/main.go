@@ -45,8 +45,9 @@ func main() {
 		crumbPlanes := crumbImage.GetPlanes()
 
 		encoders := []comp.PixCrumbEncoder{
-			comp.NewPixCrumb1(),
-			comp.NewPixCrumb5l(),
+			comp.NewPixCrumbRLE(),
+			comp.NewPixCrumbLZ(),
+			comp.NewPixCrumbVLCLZ(),
 		}
 
 		var totalSizeRaw, totalSizeComp uint64

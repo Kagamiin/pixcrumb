@@ -8,6 +8,8 @@ import (
 	"github.com/Kagamiin/pixcrumb/cmd/imgtools"
 )
 
+type Crumb imgtools.Crumb
+
 type CrumbPeeker interface {
 	Length() uint64
 	Seek(offset int64, whence int) (int64, error)

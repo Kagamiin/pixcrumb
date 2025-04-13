@@ -1,3 +1,6 @@
 **/*.csv
+**/*.ods
+*.txt
 images/**
 .vscode/**
+**/.~lock.*

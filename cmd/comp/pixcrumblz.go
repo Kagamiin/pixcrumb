@@ -9,48 +9,48 @@ import (
 )
 
 const (
-	pc5lName       = "pixcrumb-lz"
-	pc5lAbbrevName = "pc5l"
+	pcLZName       = "pixcrumb-lz"
+	pcLZAbbrevName = "pclz"
 )
 
-type PixCrumb5lBlob struct {
+type PixCrumbLZBlob struct {
 	heightFragments uint8
 	widthTiles      uint8
 	lzStream        []byte
 	dataStream      []byte
 }
 
-func (b *PixCrumb5lBlob) GetTotalSize() uint64 {
+func (b *PixCrumbLZBlob) GetTotalSize() uint64 {
 	return uint64(len(b.lzStream) + len(b.dataStream) + 4)
 }
 
-var _ PixCrumbBlob = &PixCrumb5lBlob{}
+var _ PixCrumbBlob = &PixCrumbLZBlob{}
 
-type pixCrumb5lState struct {
-	blob        PixCrumb5lBlob
+type pixCrumbLZState struct {
+	blob        PixCrumbLZBlob
 	crumbReader CrumbReader
 	lzEnc       BitstreamBE
 	dataEnc     BitstreamBE
 	lzMode      bool
 }
 
-func NewPixCrumb5l() PixCrumbEncoder {
-	return &pixCrumb5lState{}
+func NewPixCrumbLZ() PixCrumbEncoder {
+	return &pixCrumbLZState{}
 }
 
-func NewPixCrumb5lDecoder(compressedData PixCrumb5lBlob) PixCrumbDecoder {
-	return &pixCrumb5lState{
+func NewPixCrumbLZDecoder(compressedData PixCrumbLZBlob) PixCrumbDecoder {
+	return &pixCrumbLZState{
 		blob: compressedData,
 	}
 }
 
-func (s *pixCrumb5lState) Compress(crp *imgtools.CrumbPlane) (blob PixCrumbBlob, err error) {
+func (s *pixCrumbLZState) Compress(crp *imgtools.CrumbPlane) (blob PixCrumbBlob, err error) {
 	wb := crp.GetWidthBpBytes()
 	h := crp.GetHeightCrumbs()
 	if wb > 255 || h > 255 {
 		return nil, fmt.Errorf("%w: rounded pixel dimensions %dx%d exceed max dimensions of 2040x510", ErrImageTooLarge, wb*8, h*2)
 	}
-	s.blob = PixCrumb5lBlob{
+	s.blob = PixCrumbLZBlob{
 		heightFragments: uint8(h),
 		widthTiles:      uint8(wb),
 		lzStream:        make([]byte, 0),
@@ -88,9 +88,9 @@ func (s *pixCrumb5lState) Compress(crp *imgtools.CrumbPlane) (blob PixCrumbBlob,
 			if length > 0xFFFF {
 				length = 0xFFFF
 			}
-			s.lzEnc.WriteExpOrderKGolombNumber16(uint16(length), 0)
+			s.lzEnc.WriteOrderKExpGolombNumber16(uint16(length), 0)
 			if length > 0 && offset > 0 {
-				s.lzEnc.WriteExpOrderKGolombNumber16(uint16(offset-1), 0)
+				s.lzEnc.WriteOrderKExpGolombNumber16(uint16(offset-1), 0)
 				s.crumbReader.Seek(int64(length), io.SeekCurrent)
 			}
 			s.lzMode = false
@@ -100,7 +100,7 @@ func (s *pixCrumb5lState) Compress(crp *imgtools.CrumbPlane) (blob PixCrumbBlob,
 	return &s.blob, nil
 }
 
-func (s *pixCrumb5lState) findLZMatch(windowSize uint64) (bestLength, bestOffset uint64) {
+func (s *pixCrumbLZState) findLZMatch(windowSize uint64) (bestLength, bestOffset uint64) {
 	//var bestCopiedValues []imgtools.Crumb
 	for offs := int64(1); offs < int64(windowSize); offs++ {
 		var len int64 = 0
@@ -124,16 +124,16 @@ func (s *pixCrumb5lState) findLZMatch(windowSize uint64) (bestLength, bestOffset
 	return
 }
 
-func (s *pixCrumb5lState) Decompress() (*imgtools.CrumbPlane, error) {
+func (s *pixCrumbLZState) Decompress() (*imgtools.CrumbPlane, error) {
 	panic("unimplemented")
 }
 
-func (*pixCrumb5lState) GetAbbrevName() string {
-	return pc5lAbbrevName
+func (*pixCrumbLZState) GetAbbrevName() string {
+	return pcLZAbbrevName
 }
 
-func (*pixCrumb5lState) GetName() string {
-	return pc5lName
+func (*pixCrumbLZState) GetName() string {
+	return pcLZName
 }
 
-var _ PixCrumbCodec = &pixCrumb5lState{}
+var _ PixCrumbCodec = &pixCrumbLZState{}

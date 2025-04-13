@@ -82,6 +82,23 @@ func (b *BitstreamBE) WriteCrumbs(cList []imgtools.Crumb) {
 	}
 }
 
+func (b *BitstreamBE) WriteDictEntry(word bitDictWord) {
+	b.WriteBits(word.value, word.length)
+}
+
+func (b *BitstreamBE) WriteDictCodedCrumbs(cList []imgtools.Crumb, dict BitDict) {
+	for _, c := range cList {
+		b.WriteBits(dict[c].value, dict[c].length)
+	}
+}
+
+func (b *BitstreamBE) GetNumBitsDictCodedCrumbs(cList []imgtools.Crumb, dict BitDict) (nBits uint64) {
+	for _, c := range cList {
+		nBits += uint64(dict[c].length)
+	}
+	return
+}
+
 func countBits16(val uint16) uint {
 	count := uint(16)
 	for count > 0 && val&0x8000 == 0 {
@@ -91,7 +108,7 @@ func countBits16(val uint16) uint {
 	return count
 }
 
-func (b *BitstreamBE) WriteExpGolombNumber16(value uint16) {
+func (b *BitstreamBE) writeOrder0ExpGolombNumber16(value uint16) {
 	if value == 0xFFFF {
 		panic("Integer overflow when trying to exp-Golomb encode uint16 value 0xFFFF")
 	}
@@ -100,14 +117,23 @@ func (b *BitstreamBE) WriteExpGolombNumber16(value uint16) {
 	b.WriteBits(uint64(value+1), bitCount)
 }
 
-func (b *BitstreamBE) WriteExpOrderKGolombNumber16(value uint16, order uint16) {
-	b.WriteExpGolombNumber16(value >> order)
+func (b *BitstreamBE) WriteOrderKExpGolombNumber16(value uint16, order uint16) {
+	b.writeOrder0ExpGolombNumber16(value >> order)
 	if order > 0 {
 		b.WriteBits(uint64(value&(order-1)), uint(order))
 	}
 }
 
-func (b *BitstreamBE) ReadExpOrderKGolombNumber16(order uint16) (uint16, error) {
+func (b *BitstreamBE) GetNumBitsOrderKExpGolombNumber16(value uint16, order uint16) (nBits uint64) {
+	bitCount := countBits16((value >> order) + 1)
+	nBits += uint64(bitCount*2 - 1)
+	if order > 0 {
+		nBits += uint64(order)
+	}
+	return
+}
+
+func (b *BitstreamBE) ReadOrderKExpGolombNumber16(order uint16) (uint16, error) {
 	var leadingBitCount uint16
 	bit, err := b.ReadBit()
 	if err != nil {

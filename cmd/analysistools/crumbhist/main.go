@@ -18,48 +18,54 @@ func main() {
 		log.Fatal("error: an input file must be specified")
 	}
 
-	filename := os.Args[1]
-	img, err := imgtools.LoadImage(filename)
-	if err != nil {
-		log.Fatalf("\nERROR: Could not load image file '%s': %s\n\n", filename, err.Error())
-	}
-
-	planarImg, err := imgtools.NewPlanarImage(img)
-	if err != nil {
-		log.Fatalf("ERROR: %s", err.Error())
-	}
-	bitplanes := planarImg.GetBitplanes()
-
-	for _, bp := range bitplanes {
-		bp.DeltaEncode()
-	}
-
-	crumbImage := imgtools.ImagePlanarToCrumb(planarImg)
-	crumbPlanes := crumbImage.GetPlanes()
-
 	var crumbBins [16]uint64
 	var crumbPredictBins [16][16]uint64
 	var crumbCount uint64
 	var lastCrumb imgtools.Crumb
 
-	for _, plane := range crumbPlanes {
-		crumbMtx := plane.GetCrumbs()
-		for _, row := range crumbMtx {
-			for _, crumb := range row {
-				crumbBins[crumb]++
-				crumbCount++
-			}
+	for _, filename := range os.Args[1:] {
+		img, err := imgtools.LoadImage(filename)
+		if err != nil {
+			log.Fatalf("\nERROR: Could not load image file '%s': %s\n\n", filename, err.Error())
 		}
 
-		reader, err := comp.NewCrumbReader(&crumbMtx)
+		planarImg, err := imgtools.NewPlanarImage(img)
 		if err != nil {
-			panic(err)
+			log.Fatalf("ERROR: %s", err.Error())
 		}
-		lastCrumb, _ = reader.ReadCrumb()
-		for !reader.IsAtEnd() {
-			crumb, _ := reader.ReadCrumb()
-			crumbPredictBins[lastCrumb][crumb]++
-			lastCrumb = crumb
+		bitplanes := planarImg.GetBitplanes()
+
+		for _, bp := range bitplanes {
+			bp.DeltaEncode()
+		}
+
+		crumbImage := imgtools.ImagePlanarToCrumb(planarImg)
+		crumbPlanes := crumbImage.GetPlanes()
+
+		for _, plane := range crumbPlanes {
+			crumbMtx := plane.GetCrumbs()
+			for _, row := range crumbMtx {
+				for _, crumb := range row {
+					if crumb != 0 || lastCrumb != 0 {
+						crumbBins[crumb]++
+						crumbCount++
+					}
+					lastCrumb = crumb
+				}
+			}
+
+			reader, err := comp.NewCrumbReader(&crumbMtx)
+			if err != nil {
+				panic(err)
+			}
+			lastCrumb, _ = reader.ReadCrumb()
+			for !reader.IsAtEnd() {
+				crumb, _ := reader.ReadCrumb()
+				if crumb != 0 || lastCrumb != 0 {
+					crumbPredictBins[lastCrumb][crumb]++
+				}
+				lastCrumb = crumb
+			}
 		}
 	}
 
