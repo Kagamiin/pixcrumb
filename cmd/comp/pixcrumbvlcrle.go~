@@ -27,7 +27,7 @@ func (b *PixCrumbVLCRLEBlob) GetTotalSize() uint64 {
 type pixCrumbVLCRLEState struct {
 	blob        PixCrumbVLCRLEBlob
 	crumbReader CrumbReader
-	dataEnc     BitstreamBE
+	dataEnc     BitstreamMSBWriter
 	rleMode     bool
 	rleCount    uint16
 

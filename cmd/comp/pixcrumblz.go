@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/Kagamiin/pixcrumb/cmd/comp/codingmethods"
 	"github.com/Kagamiin/pixcrumb/cmd/imgtools"
 )
 
@@ -28,9 +29,9 @@ var _ PixCrumbBlob = &PixCrumbLZBlob{}
 
 type pixCrumbLZState struct {
 	blob        PixCrumbLZBlob
-	crumbReader CrumbReader
-	lzEnc       BitstreamBE
-	dataEnc     BitstreamBE
+	crumbReader codingmethods.CrumbReader
+	lzEnc       codingmethods.BitstreamMSBWriter
+	dataEnc     codingmethods.BitstreamMSBWriter
 	lzMode      bool
 }
 
@@ -56,14 +57,12 @@ func (s *pixCrumbLZState) Compress(crp *imgtools.CrumbPlane) (blob PixCrumbBlob,
 		lzStream:        make([]byte, 0),
 		dataStream:      make([]byte, 0),
 	}
-	s.lzEnc.data = &s.blob.lzStream
-	s.dataEnc.data = &s.blob.dataStream
+	s.lzEnc = codingmethods.NewBitstreamMSBWriter(&s.blob.lzStream)
+	s.dataEnc = codingmethods.NewBitstreamMSBWriter(&s.blob.dataStream)
 	s.lzMode = false
-	s.lzEnc.Reset()
-	s.dataEnc.Reset()
 
 	rawData := crp.GetCrumbs()
-	s.crumbReader, err = NewCrumbReader(&rawData)
+	s.crumbReader, err = codingmethods.NewCrumbReader(&rawData)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +106,7 @@ func (s *pixCrumbLZState) findLZMatch(windowSize uint64) (bestLength, bestOffset
 		for {
 			dest, err1 := s.crumbReader.PeekCrumbAt(len, true)
 			src, err2 := s.crumbReader.PeekCrumbAt(-offs+int64(len%offs), true)
-			if errors.Is(err1, ErrCrumbIndexOutOfBounds) || errors.Is(err2, ErrCrumbIndexOutOfBounds) {
+			if errors.Is(err1, codingmethods.ErrCrumbIndexOutOfBounds) || errors.Is(err2, codingmethods.ErrCrumbIndexOutOfBounds) {
 				break
 			}
 			if dest != src {

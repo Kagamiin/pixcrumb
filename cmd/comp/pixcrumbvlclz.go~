@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/Kagamiin/pixcrumb/cmd/comp/codingmethods"
 	"github.com/Kagamiin/pixcrumb/cmd/imgtools"
 )
 
@@ -29,7 +30,7 @@ var _ PixCrumbBlob = &PixCrumbVLCLZBlob{}
 type pixCrumbVLCLZState struct {
 	blob        PixCrumbVLCLZBlob
 	crumbReader CrumbReader
-	dataEnc     BitstreamBE
+	dataEnc     BitstreamMSBWriter
 }
 
 func NewPixCrumbVLCLZ() PixCrumbEncoder {
@@ -70,9 +71,9 @@ func (s *pixCrumbVLCLZState) Compress(crp *imgtools.CrumbPlane) (blob PixCrumbBl
 			if length > 0 {
 				var literalSize, lzSize uint64
 				lzList := s.getLZData(length, offset)
-				literalSize = s.dataEnc.GetNumBitsDictCodedCrumbs(lzList, DictLZ)
-				literalSize += uint64(DictLZ[TOKEN_END_OF_LITERALS].length)
-				lzSize = uint64(DictLZ[TOKEN_END_OF_LITERALS].length)
+				literalSize = s.dataEnc.GetNumBitsDictCodedCrumbs(lzList, codingmethods.DictLZ)
+				literalSize += uint64(codingmethods.DictLZ[TOKEN_END_OF_LITERALS].length)
+				lzSize = uint64(codingmethods.DictLZ[TOKEN_END_OF_LITERALS].length)
 				lzSize += s.dataEnc.GetNumBitsOrderKExpGolombNumber16(uint16(length-1), 0)
 				lzSize += s.dataEnc.GetNumBitsOrderKExpGolombNumber16(uint16(offset-1), 0)
 				if lzSize < literalSize {

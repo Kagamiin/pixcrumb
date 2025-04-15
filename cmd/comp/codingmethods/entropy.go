@@ -1,4 +1,4 @@
-package comp
+package codingmethods
 
 import "github.com/Kagamiin/pixcrumb/cmd/imgtools"
 

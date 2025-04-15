@@ -7,7 +7,7 @@ import (
 
 	_ "image/png"
 
-	"github.com/Kagamiin/pixcrumb/cmd/comp"
+	"github.com/Kagamiin/pixcrumb/cmd/comp/codingmethods"
 	"github.com/Kagamiin/pixcrumb/cmd/imgtools"
 )
 
@@ -54,7 +54,7 @@ func main() {
 				}
 			}
 
-			reader, err := comp.NewCrumbReader(&crumbMtx)
+			reader, err := codingmethods.NewCrumbReader(&crumbMtx)
 			if err != nil {
 				panic(err)
 			}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/Kagamiin/pixcrumb/cmd/comp/codingmethods"
 	"github.com/Kagamiin/pixcrumb/cmd/imgtools"
 )
 
@@ -26,16 +27,9 @@ func (b *PixCrumbRLEBlob) GetTotalSize() uint64 {
 }
 
 type pixCrumbRLEState struct {
-	blob        PixCrumbRLEBlob
-	crumbReader CrumbReader
-	rleEnc      BitstreamBE
-	dataEnc     BitstreamBE
-	rleMode     bool
-	rleCount    uint16
-
-	modeSwitches         uint64
-	literalCrumbsWritten uint64
-	rleCrumbsProcessed   uint64
+	blob     PixCrumbRLEBlob
+	rleMode  bool
+	rleCount uint16
 }
 
 var _ PixCrumbCodec = &pixCrumbRLEState{}
@@ -70,57 +64,45 @@ func (s *pixCrumbRLEState) Compress(crp *imgtools.CrumbPlane) (blob PixCrumbBlob
 		rleStream:       make([]byte, 0),
 		dataStream:      make([]byte, 0),
 	}
-	s.rleEnc.data = &s.blob.rleStream
-	s.dataEnc.data = &s.blob.dataStream
+	rleEnc := codingmethods.NewBitstreamMSBWriter(&s.blob.rleStream)
+	dataEnc := codingmethods.NewBitstreamMSBWriter(&s.blob.dataStream)
 	s.rleMode = false
 	s.rleCount = 0
-	s.rleEnc.Reset()
-	s.dataEnc.Reset()
-	s.modeSwitches = 0
-	s.literalCrumbsWritten = 0
-	s.rleCrumbsProcessed = 0
 
 	rawData := crp.GetCrumbs()
-	s.crumbReader, err = NewCrumbReader(&rawData)
+	crumbReader, err := codingmethods.NewCrumbReader(&rawData)
 	if err != nil {
 		return nil, err
 	}
 
-	for !s.crumbReader.IsAtEnd() {
+	literalEncoder, err := codingmethods.NewZeroTerminated4BitCrumbLiteralCoder(crumbReader, dataEnc, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	for !crumbReader.IsAtEnd() {
 		if !s.rleMode {
-			var cList []imgtools.Crumb = nil
-			for !s.crumbReader.IsAtEnd() {
-				c, err := s.crumbReader.ReadCrumb()
-				if err != nil {
-					return nil, err
-				}
-				cList = append(cList, c)
-				if c == 0 {
-					break
-				}
-				s.literalCrumbsWritten++
+			_, _, err := literalEncoder.EncodeSome()
+			if err != nil {
+				return nil, err
 			}
 			s.rleCount = 1
 			s.rleMode = true
-			s.modeSwitches++
-			s.dataEnc.WriteCrumbs(cList)
 		} else {
-			for !s.crumbReader.IsAtEnd() && s.rleCount < 0xFFFF {
-				c, err := s.crumbReader.ReadCrumb()
+			for !crumbReader.IsAtEnd() && s.rleCount < 0xFFFF {
+				c, err := crumbReader.ReadCrumb()
 				if err != nil {
 					return nil, err
 				}
 				if c != 0 {
-					s.crumbReader.Seek(-1, io.SeekCurrent)
+					crumbReader.Seek(-1, io.SeekCurrent)
 					break
 				}
 				s.rleCount++
-				s.rleCrumbsProcessed++
 			}
-			s.rleEnc.WriteOrderKExpGolombNumber16(s.rleCount-1, 0)
+			rleEnc.WriteOrderKExpGolombNumber16(s.rleCount-1, 0)
 			s.rleCount = 0
 			s.rleMode = false
-			s.modeSwitches++
 		}
 	}
 

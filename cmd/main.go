@@ -47,7 +47,6 @@ func main() {
 		encoders := []comp.PixCrumbEncoder{
 			comp.NewPixCrumbRLE(),
 			comp.NewPixCrumbLZ(),
-			comp.NewPixCrumbVLCLZ(),
 		}
 
 		var totalSizeRaw, totalSizeComp uint64
