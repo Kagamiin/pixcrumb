@@ -2,7 +2,6 @@ package comp
 
 import (
 	"fmt"
-	"io"
 
 	"github.com/Kagamiin/pixcrumb/cmd/comp/codingmethods"
 	"github.com/Kagamiin/pixcrumb/cmd/imgtools"
@@ -27,9 +26,8 @@ func (b *PixCrumbRLEBlob) GetTotalSize() uint64 {
 }
 
 type pixCrumbRLEState struct {
-	blob     PixCrumbRLEBlob
-	rleMode  bool
-	rleCount uint16
+	blob    PixCrumbRLEBlob
+	rleMode bool
 }
 
 var _ PixCrumbCodec = &pixCrumbRLEState{}
@@ -67,7 +65,6 @@ func (s *pixCrumbRLEState) Compress(crp *imgtools.CrumbPlane) (blob PixCrumbBlob
 	rleEnc := codingmethods.NewBitstreamMSBWriter(&s.blob.rleStream)
 	dataEnc := codingmethods.NewBitstreamMSBWriter(&s.blob.dataStream)
 	s.rleMode = false
-	s.rleCount = 0
 
 	rawData := crp.GetCrumbs()
 	crumbReader, err := codingmethods.NewCrumbReader(&rawData)
@@ -80,28 +77,23 @@ func (s *pixCrumbRLEState) Compress(crp *imgtools.CrumbPlane) (blob PixCrumbBlob
 		return nil, err
 	}
 
+	rleEncoder, err := codingmethods.NewExpGolombCodedZeroRLECoder(crumbReader, rleEnc, nil, nil, 2)
+	if err != nil {
+		return nil, err
+	}
+
 	for !crumbReader.IsAtEnd() {
 		if !s.rleMode {
 			_, _, err := literalEncoder.EncodeSome()
 			if err != nil {
 				return nil, err
 			}
-			s.rleCount = 1
 			s.rleMode = true
 		} else {
-			for !crumbReader.IsAtEnd() && s.rleCount < 0xFFFF {
-				c, err := crumbReader.ReadCrumb()
-				if err != nil {
-					return nil, err
-				}
-				if c != 0 {
-					crumbReader.Seek(-1, io.SeekCurrent)
-					break
-				}
-				s.rleCount++
+			_, _, err := rleEncoder.EncodeSome()
+			if err != nil {
+				return nil, err
 			}
-			rleEnc.WriteOrderKExpGolombNumber16(s.rleCount-1, 0)
-			s.rleCount = 0
 			s.rleMode = false
 		}
 	}
@@ -112,5 +104,5 @@ func (s *pixCrumbRLEState) Compress(crp *imgtools.CrumbPlane) (blob PixCrumbBlob
 }
 
 func (s *pixCrumbRLEState) Decompress() (*imgtools.CrumbPlane, error) {
-	panic("not implemented")
+	panic("aaai eu amo a sockettgirl <3")
 }
