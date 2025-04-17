@@ -7,6 +7,36 @@ type CodingMethod interface {
 	DecodeSome() (nCrumbs uint64, bitsRead uint64, err error)
 }
 
+type CrumbPeeker interface {
+	Length() uint64
+	Seek(offset int64, whence int) (int64, error)
+	Tell() int64
+	PeekCrumb() (imgtools.Crumb, error)
+	PeekNCrumbs(n uint64) ([]imgtools.Crumb, error)
+	PeekCrumbAt(offset int64, relative bool) (imgtools.Crumb, error)
+	PeekNCrumbsAt(n uint64, offset int64, relative bool) ([]imgtools.Crumb, error)
+	IsLengthAligned() bool
+	IsAtEnd() bool
+	GetHeightCrumbs() int
+	GetCrumbMatrix() (*[][]imgtools.Crumb, error)
+}
+
+type CrumbReader interface {
+	CrumbPeeker
+	ReadCrumb() (c imgtools.Crumb, err error)
+}
+
+type CrumbWriter interface {
+	CrumbPeeker
+	WriteCrumb(c imgtools.Crumb)
+	WriteCrumbs(cList []imgtools.Crumb)
+}
+
+type CrumbReadWriter interface {
+	CrumbReader
+	CrumbWriter
+}
+
 type bitstreamMSBPeeker interface {
 	Reset()
 	PeekBit() uint8

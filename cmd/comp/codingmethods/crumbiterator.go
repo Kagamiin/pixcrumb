@@ -8,37 +8,6 @@ import (
 	"github.com/Kagamiin/pixcrumb/cmd/imgtools"
 )
 
-type Crumb imgtools.Crumb
-
-type CrumbPeeker interface {
-	Length() uint64
-	Seek(offset int64, whence int) (int64, error)
-	Tell() int64
-	PeekCrumb() (imgtools.Crumb, error)
-	PeekNCrumbs(n uint64) ([]imgtools.Crumb, error)
-	PeekCrumbAt(offset int64, relative bool) (imgtools.Crumb, error)
-	PeekNCrumbsAt(n uint64, offset int64, relative bool) ([]imgtools.Crumb, error)
-	IsLengthAligned() bool
-	IsAtEnd() bool
-	GetCrumbMatrix() (*[][]imgtools.Crumb, error)
-}
-
-type CrumbReader interface {
-	CrumbPeeker
-	ReadCrumb() (c imgtools.Crumb, err error)
-}
-
-type CrumbWriter interface {
-	CrumbPeeker
-	WriteCrumb(c imgtools.Crumb)
-	WriteCrumbs(cList []imgtools.Crumb)
-}
-
-type CrumbReadWriter interface {
-	CrumbReader
-	CrumbWriter
-}
-
 type crumbIterator struct {
 	mtx          *[][]imgtools.Crumb
 	index        int64
@@ -119,6 +88,10 @@ func (ci *crumbIterator) linearToMortonIndex(idx int64) (yPos int, xPos int) {
 		xPos = int(ci.width) - xOffs - 1
 	}
 	return
+}
+
+func (ci *crumbIterator) GetHeightCrumbs() int {
+	return len(*ci.mtx)
 }
 
 func (ci *crumbIterator) IsLengthAligned() bool {

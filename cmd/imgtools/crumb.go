@@ -16,8 +16,16 @@ type Crumb uint8
 
 type CrumbPlane struct {
 	crumbs [][]Crumb
-	width  uint64
 	height uint64
+	width  uint64
+}
+
+func MakeCrumbPlane(crumbMtx *[][]Crumb) *CrumbPlane {
+	return &CrumbPlane{
+		crumbs: *crumbMtx,
+		height: uint64(len(*crumbMtx)) * 2,
+		width:  uint64(len((*crumbMtx)[0])) * 2,
+	}
 }
 
 func (c CrumbPlane) GetWidthPx() uint64 {

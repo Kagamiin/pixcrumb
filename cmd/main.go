@@ -3,6 +3,7 @@ package main
 import (
 	// "flag"
 	"fmt"
+	"image"
 	"log"
 	"os"
 
@@ -30,44 +31,47 @@ func main() {
 			continue
 		}
 
-		planarImg, err := imgtools.NewPlanarImage(img)
+		compPlaneBlobs, err := compressImageIntoPixCrumbBlobs(img, comp.NewPixCrumbRLEEncoder())
 		if err != nil {
-			log.Printf("ERROR: %s", err.Error())
-			continue
+			log.Println(err)
 		}
-		bitplanes := planarImg.GetBitplanes()
-
-		for _, bp := range bitplanes {
-			bp.DeltaEncode()
-		}
-
-		crumbImage := imgtools.ImagePlanarToCrumb(planarImg)
-		crumbPlanes := crumbImage.GetPlanes()
-
-		encoders := []comp.PixCrumbEncoder{
-			comp.NewPixCrumbRLE(),
-		}
-
-		var totalSizeRaw, totalSizeComp uint64
-		for _, pixcrumbEncoder := range encoders {
-			totalSizeRaw = 0
-			totalSizeComp = 0
-			fmt.Printf("\nUsing method %s:\n", pixcrumbEncoder.GetName())
-			for i, crp := range crumbPlanes {
-				rawSize := bitplanes[i].GetTotalSize()
-				comp, err := pixcrumbEncoder.Compress(&crp)
-				if err != nil {
-					log.Printf("error while encoding BP%d: %s\n", i, err.Error())
-					continue
-				}
-				compSize := comp.GetTotalSize()
-				fmt.Printf("BP%d raw size: %d bytes, compressed to %d bytes (ratio: %.03f)\n", i, rawSize, compSize, float64(compSize)/float64(rawSize))
-				totalSizeRaw += rawSize
-				totalSizeComp += compSize
-			}
-			fmt.Printf("Total: raw size %d bytes, compressed to %d bytes (ratio: %.03f)\n\n", totalSizeRaw, totalSizeComp, float64(totalSizeComp)/float64(totalSizeRaw))
-		}
+		_ = compPlaneBlobs
+		// TODO: decompress and save image
 	}
+}
+
+func compressImageIntoPixCrumbBlobs(img image.PalettedImage, codec comp.PixCrumbEncoder) ([]comp.PixCrumbBlob, error) {
+	planarImg, err := imgtools.NewPlanarImage(img)
+	if err != nil {
+		return nil, err
+	}
+	bitplanes := planarImg.GetBitplanes()
+
+	for _, bp := range bitplanes {
+		bp.DeltaEncode()
+	}
+
+	crumbImage := imgtools.ImagePlanarToCrumb(planarImg)
+	crumbPlanes := crumbImage.GetPlanes()
+
+	var compressedBlobs []comp.PixCrumbBlob
+
+	var totalSizeRaw, totalSizeComp uint64
+	fmt.Printf("\nUsing method %s:\n", codec.GetName())
+	for i, crp := range crumbPlanes {
+		rawSize := bitplanes[i].GetTotalSize()
+		comp, err := codec.Compress(&crp)
+		if err != nil {
+			return nil, fmt.Errorf("error while encoding BP%d: %w", i, err)
+		}
+		compSize := comp.GetTotalSize()
+		fmt.Printf("BP%d raw size: %d bytes, compressed to %d bytes (ratio: %.03f)\n", i, rawSize, compSize, float64(compSize)/float64(rawSize))
+		totalSizeRaw += rawSize
+		totalSizeComp += compSize
+		compressedBlobs = append(compressedBlobs, comp)
+	}
+	fmt.Printf("Total: raw size %d bytes, compressed to %d bytes (ratio: %.03f)\n\n", totalSizeRaw, totalSizeComp, float64(totalSizeComp)/float64(totalSizeRaw))
+	return compressedBlobs, nil
 }
 
 func handle(err error) {
